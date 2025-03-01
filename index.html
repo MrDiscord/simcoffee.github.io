@@ -77,6 +77,11 @@
         .sofa { background-color: #D2691E; color: white; }
         .plant { background-color: #228B22; color: white; }
         .customer { background-color: #FFD700; color: black; }
+        #orderDisplay {
+            margin: 10px;
+            font-size: 1.1em;
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -100,6 +105,7 @@
         <button onclick="buyPlant()">Купить растение ($100)</button>
         <button onclick="serveCustomer()">Обслужить клиента</button>
     </div>
+    <div id="orderDisplay"></div>
     <div id="coffeeShop"></div>
     <script>
         let money = 1500;
@@ -112,16 +118,7 @@
         let customers = 0;
         let grid = Array(100).fill(null); // 10x10 клеток
         let placingItem = null;
-
-        const drinks = [
-            { name: "Эспрессо", cost: 2, income: 5 },
-            { name: "Латте", cost: 3, income: 7 },
-            { name: "Капучино", cost: 4, income: 9 }
-        ];
-        const pastries = [
-            { name: "Круассан", cost: 1, income: 6 },
-            { name: "Пончик", cost: 1, income: 5 }
-        ];
+        let currentOrder = null;
 
         function updateStatus() {
             document.getElementById("money").innerText = money;
@@ -254,47 +251,55 @@
         }
 
         function serveCustomer() {
-            if (customers > 0) {
-                const choice = Math.random() < 0.5 ? "drink" : "pastry";
-                if (choice === "drink") {
-                    const drink = drinks[Math.floor(Math.random() * drinks.length)];
-                    if (coffeeStock >= drink.cost) {
-                        coffeeStock -= drink.cost;
-                        money += drink.income;
-                        customers--;
-                        removeCustomerFromGrid();
-                        updateStatus();
-                        updateCoffeeShop();
-                        alert(`Ты приготовил ${drink.name}. Заработано $${drink.income}.`);
-                    } else {
-                        alert("Недостаточно кофе!");
-                    }
+            if (customers > 0 && currentOrder) {
+                if (currentOrder.type === "coffee" && coffeeStock > 0) {
+                    coffeeStock--;
+                    money += 8;
+                    customers--;
+                    removeCustomerFromGrid();
+                    updateStatus();
+                    updateCoffeeShop();
+                    alert(`Ты обслужил клиента и приготовил кофе. Заработано $8.`);
+                    document.getElementById("orderDisplay").innerText = "";
+                    currentOrder = null;
+                } else if (currentOrder.type === "pastry" && pastryStock > 0) {
+                    pastryStock--;
+                    money += 9;
+                    customers--;
+                    removeCustomerFromGrid();
+                    updateStatus();
+                    updateCoffeeShop();
+                    alert(`Ты обслужил клиента и продал выпечку. Заработано $9.`);
+                    document.getElementById("orderDisplay").innerText = "";
+                    currentOrder = null;
                 } else {
-                    const pastry = pastries[Math.floor(Math.random() * pastries.length)];
-                    if (pastryStock >= pastry.cost) {
-                        pastryStock -= pastry.cost;
-                        money += pastry.income;
-                        customers--;
-                        removeCustomerFromGrid();
-                        updateStatus();
-                        updateCoffeeShop();
-                        alert(`Ты продал ${pastry.name}. Заработано $${pastry.income}.`);
-                    } else {
-                        alert("Недостаточно выпечки!");
-                    }
+                    alert("Недостаточно ресурсов для выполнения заказа!");
                 }
             } else {
-                alert("Нет клиентов для обслуживания!");
+                alert("Нет клиентов или заказа для обслуживания!");
             }
         }
 
         function spawnCustomer() {
-            const availableChairs = grid.reduce((acc, val, idx) => 
-                val === "chair" && !grid.includes("customer") ? [...acc, idx] : acc, []);
+            const availableChairs = [];
+            for (let i = 0; i < grid.length; i++) {
+                if (grid[i] === "chair") {
+                    // Проверяем, есть ли рядом стол (соседние клетки: слева, справа, сверху, снизу)
+                    const adjacent = [
+                        i - 10, i + 10, // Верх и низ
+                        i - 1, i + 1    // Слева и справа
+                    ].filter(idx => idx >= 0 && idx < 100 && grid[idx] === "table");
+                    if (adjacent.length > 0) {
+                        availableChairs.push(i);
+                    }
+                }
+            }
             if (availableChairs.length > 0 && tables > 0) {
                 const chairIndex = availableChairs[Math.floor(Math.random() * availableChairs.length)];
                 grid[chairIndex] = "customer";
                 customers++;
+                currentOrder = Math.random() < 0.5 ? { type: "coffee", price: 8 } : { type: "pastry", price: 9 };
+                document.getElementById("orderDisplay").innerText = `Заказ клиента: ${currentOrder.type === "coffee" ? "Кофе ($8)" : "Выпечка ($9)"}`;
                 updateStatus();
                 updateCoffeeShop();
             }
@@ -307,7 +312,7 @@
             }
         }
 
-        // Приход клиентов каждые 10 секунд, если есть столы и свободные стулья
+        // Приход клиентов каждые 10 секунд, если есть стол и свободные стулья рядом
         setInterval(() => {
             if (tables > 0) spawnCustomer();
         }, 10000);
