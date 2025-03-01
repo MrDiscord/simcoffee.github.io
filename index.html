@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Симулятор кофейни ☕</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to bottom, #f7f7f7, #e0e0e0);
+            color: #333;
+        }
+        h1 {
+            margin-top: 20px;
+            font-size: 2.5em;
+            color: #4a4a4a;
+        }
+        #status {
+            font-size: 1.2em;
+            margin: 20px;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        button {
+            padding: 12px 24px;
+            margin: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+        #coffeeShop {
+            display: grid;
+            grid-template-columns: repeat(10, 50px);
+            grid-gap: 2px;
+            margin: 20px auto;
+            width: 520px;
+            background: repeating-linear-gradient(
+                45deg,
+                #ffffff,
+                #ffffff 20px,
+                #f0f0f0 20px,
+                #f0f0f0 40px
+            );
+            padding: 10px;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+        }
+        .cell {
+            width: 50px;
+            height: 50px;
+            background-color: transparent;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+        }
+        .chair { background-color: #8B4513; color: white; }
+        .table { background-color: #A0522D; color: white; }
+        .sofa { background-color: #D2691E; color: white; }
+        .plant { background-color: #228B22; color: white; }
+        .customer { background-color: #FFD700; color: black; }
+    </style>
+</head>
+<body>
+    <h1>Симулятор кофейни ☕</h1>
+    <div id="status">
+        Деньги: $<span id="money">1500</span><br>
+        Кофе в запасе: <span id="coffeeStock">50</span><br>
+        Выпечка в запасе: <span id="pastryStock">0</span><br>
+        Стулья: <span id="chairs">0</span><br>
+        Столы: <span id="tables">0</span><br>
+        Диваны: <span id="sofas">0</span><br>
+        Растения: <span id="plants">0</span><br>
+        Клиенты: <span id="customers">0</span>
+    </div>
+    <div class="container">
+        <button onclick="buyCoffee()">Купить кофе ($10 за 5 порций)</button>
+        <button onclick="buyPastry()">Купить выпечку ($20 за 5 шт.)</button>
+        <button onclick="buyChair()">Купить стул ($200)</button>
+        <button onclick="buyTable()">Купить стол ($500)</button>
+        <button onclick="buySofa()">Купить диван ($300)</button>
+        <button onclick="buyPlant()">Купить растение ($100)</button>
+        <button onclick="serveCustomer()">Обслужить клиента</button>
+    </div>
+    <div id="coffeeShop"></div>
+    <script>
+        let money = 1500;
+        let coffeeStock = 50;
+        let pastryStock = 0;
+        let chairs = 0;
+        let tables = 0;
+        let sofas = 0;
+        let plants = 0;
+        let customers = 0;
+        let grid = Array(100).fill(null); // 10x10 клеток
+        let placingItem = null;
+
+        const drinks = [
+            { name: "Эспрессо", cost: 2, income: 5 },
+            { name: "Латте", cost: 3, income: 7 },
+            { name: "Капучино", cost: 4, income: 9 }
+        ];
+        const pastries = [
+            { name: "Круассан", cost: 1, income: 6 },
+            { name: "Пончик", cost: 1, income: 5 }
+        ];
+
+        function updateStatus() {
+            document.getElementById("money").innerText = money;
+            document.getElementById("coffeeStock").innerText = coffeeStock;
+            document.getElementById("pastryStock").innerText = pastryStock;
+            document.getElementById("chairs").innerText = chairs;
+            document.getElementById("tables").innerText = tables;
+            document.getElementById("sofas").innerText = sofas;
+            document.getElementById("plants").innerText = plants;
+            document.getElementById("customers").innerText = customers;
+        }
+
+        function createCoffeeShop() {
+            const shop = document.getElementById("coffeeShop");
+            shop.innerHTML = '';
+            for (let i = 0; i < 100; i++) {
+                const cell = document.createElement("div");
+                cell.classList.add("cell");
+                cell.addEventListener("click", () => placeItem(i));
+                shop.appendChild(cell);
+            }
+            updateCoffeeShop();
+        }
+
+        function updateCoffeeShop() {
+            const cells = document.getElementsByClassName("cell");
+            for (let i = 0; i < grid.length; i++) {
+                cells[i].className = "cell";
+                cells[i].innerText = "";
+                if (grid[i] === "chair") {
+                    cells[i].classList.add("chair");
+                    cells[i].innerText = "С";
+                } else if (grid[i] === "table") {
+                    cells[i].classList.add("table");
+                    cells[i].innerText = "Т";
+                } else if (grid[i] === "sofa") {
+                    cells[i].classList.add("sofa");
+                    cells[i].innerText = "Д";
+                } else if (grid[i] === "plant") {
+                    cells[i].classList.add("plant");
+                    cells[i].innerText = "Р";
+                } else if (grid[i] === "customer") {
+                    cells[i].classList.add("customer");
+                    cells[i].innerText = "Г";
+                }
+            }
+        }
+
+        function placeItem(index) {
+            if (placingItem && grid[index] === null) {
+                grid[index] = placingItem;
+                if (placingItem === "chair") chairs--;
+                if (placingItem === "table") tables--;
+                if (placingItem === "sofa") sofas--;
+                if (placingItem === "plant") plants--;
+                placingItem = null;
+                updateStatus();
+                updateCoffeeShop();
+            }
+        }
+
+        function buyCoffee() {
+            if (money >= 10) {
+                money -= 10;
+                coffeeStock += 5;
+                updateStatus();
+                alert("Ты купил 5 порций кофе за $10.");
+            } else {
+                alert("Недостаточно денег!");
+            }
+        }
+
+        function buyPastry() {
+            if (money >= 20) {
+                money -= 20;
+                pastryStock += 5;
+                updateStatus();
+                alert("Ты купил 5 штук выпечки за $20.");
+            } else {
+                alert("Недостаточно денег!");
+            }
+        }
+
+        function buyChair() {
+            if (money >= 200) {
+                money -= 200;
+                chairs++;
+                placingItem = "chair";
+                updateStatus();
+                alert("Ты купил стул за $200. Кликни на поле, чтобы поставить его.");
+            } else {
+                alert("Недостаточно денег!");
+            }
+        }
+
+        function buyTable() {
+            if (money >= 500) {
+                money -= 500;
+                tables++;
+                placingItem = "table";
+                updateStatus();
+                alert("Ты купил стол за $500. Кликни на поле, чтобы поставить его.");
+            } else {
+                alert("Недостаточно денег!");
+            }
+        }
+
+        function buySofa() {
+            if (money >= 300) {
+                money -= 300;
+                sofas++;
+                placingItem = "sofa";
+                updateStatus();
+                alert("Ты купил диван за $300. Кликни на поле, чтобы поставить его.");
+            } else {
+                alert("Недостаточно денег!");
+            }
+        }
+
+        function buyPlant() {
+            if (money >= 100) {
+                money -= 100;
+                plants++;
+                placingItem = "plant";
+                updateStatus();
+                alert("Ты купил растение за $100. Кликни на поле, чтобы поставить его.");
+            } else {
+                alert("Недостаточно денег!");
+            }
+        }
+
+        function serveCustomer() {
+            if (customers > 0) {
+                const choice = Math.random() < 0.5 ? "drink" : "pastry";
+                if (choice === "drink") {
+                    const drink = drinks[Math.floor(Math.random() * drinks.length)];
+                    if (coffeeStock >= drink.cost) {
+                        coffeeStock -= drink.cost;
+                        money += drink.income;
+                        customers--;
+                        removeCustomerFromGrid();
+                        updateStatus();
+                        updateCoffeeShop();
+                        alert(`Ты приготовил ${drink.name}. Заработано $${drink.income}.`);
+                    } else {
+                        alert("Недостаточно кофе!");
+                    }
+                } else {
+                    const pastry = pastries[Math.floor(Math.random() * pastries.length)];
+                    if (pastryStock >= pastry.cost) {
+                        pastryStock -= pastry.cost;
+                        money += pastry.income;
+                        customers--;
+                        removeCustomerFromGrid();
+                        updateStatus();
+                        updateCoffeeShop();
+                        alert(`Ты продал ${pastry.name}. Заработано $${pastry.income}.`);
+                    } else {
+                        alert("Недостаточно выпечки!");
+                    }
+                }
+            } else {
+                alert("Нет клиентов для обслуживания!");
+            }
+        }
+
+        function spawnCustomer() {
+            const availableChairs = grid.reduce((acc, val, idx) => 
+                val === "chair" && !grid.includes("customer") ? [...acc, idx] : acc, []);
+            if (availableChairs.length > 0 && tables > 0) {
+                const chairIndex = availableChairs[Math.floor(Math.random() * availableChairs.length)];
+                grid[chairIndex] = "customer";
+                customers++;
+                updateStatus();
+                updateCoffeeShop();
+            }
+        }
+
+        function removeCustomerFromGrid() {
+            const customerIndex = grid.indexOf("customer");
+            if (customerIndex !== -1) {
+                grid[customerIndex] = "chair";
+            }
+        }
+
+        // Приход клиентов каждые 10 секунд, если есть столы и свободные стулья
+        setInterval(() => {
+            if (tables > 0) spawnCustomer();
+        }, 10000);
+
+        createCoffeeShop();
+        updateStatus();
+    </script>
+</body>
+</html>
